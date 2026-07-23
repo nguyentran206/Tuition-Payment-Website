@@ -1,0 +1,350 @@
+{
+  "info": {
+    "_postman_id": "dce873ad-f1da-4adc-9068-6d82471bc7b5",
+    "name": "Tuition Payment API",
+    "description": "Source-derived API requests for the Tuition Payment Website. Prepared only; not executed. Use synthetic data and a non-production environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Gateway Root",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] },
+            "description": "Expected source-derived success status: 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Health (Direct Service)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{payment_service_url}}/healthz", "host": ["{{payment_service_url}}"], "path": ["healthz"] },
+            "description": "Direct service health route; expected source-derived success status: 200."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.access_token) pm.environment.set('access_token', body.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "200 valid credentials; 401 invalid credentials; 422 invalid body. Saves returned token to the selected local environment only."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/auth/verify", "host": ["{{base_url}}"], "path": ["auth", "verify"] },
+            "description": "200 valid token; 401 invalid/expired token."
+          },
+          "response": []
+        },
+        {
+          "name": "Signup (Direct Auth Service)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{signup_username}}\",\n  \"email\": \"{{signup_email}}\",\n  \"name\": \"{{signup_name}}\",\n  \"password\": \"{{signup_password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{auth_service_url}}/auth/signup", "host": ["{{auth_service_url}}"], "path": ["auth", "signup"] },
+            "description": "Direct-service request because the gateway does not proxy Auth POST routes other than login. 200 success; 400 duplicate/upstream failure; 422 invalid email/body."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Create User Profile",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{signup_username}}\",\n  \"email\": \"{{signup_email}}\",\n  \"name\": \"{{signup_name}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/user/create", "host": ["{{base_url}}"], "path": ["user", "create"] },
+            "description": "Public route used by Auth signup. 200 success; 400 empty fields/DB error; 422 invalid body/email."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/user/me", "host": ["{{base_url}}"], "path": ["user", "me"] },
+            "description": "200 success; 401 missing/invalid token; 404 profile not found."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/user/by-id/{{user_id}}", "host": ["{{base_url}}"], "path": ["user", "by-id", "{{user_id}}"] },
+            "description": "200 success; 401 unauthorized; 404 unknown user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by Username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/user/by-username/{{other_username}}", "host": ["{{base_url}}"], "path": ["user", "by-username", "{{other_username}}"] },
+            "description": "200 success. Missing-user behavior requires verification because the active helper is overwritten; see PI-USER-001."
+          },
+          "response": []
+        },
+        {
+          "name": "Debit User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"{{amount}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/user/{{user_id}}/debit", "host": ["{{base_url}}"], "path": ["user", "{{user_id}}", "debit"] },
+            "description": "State-changing. 200 success; 404 user; 409 insufficient/concurrent balance; 422 invalid amount."
+          },
+          "response": []
+        },
+        {
+          "name": "Deposit User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"{{amount}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/user/{{user_id}}/deposit", "host": ["{{base_url}}"], "path": ["user", "{{user_id}}", "deposit"] },
+            "description": "State-changing simulated top-up. 200 success; 404 user; 409 concurrent balance; 422 invalid amount."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Student Fee",
+      "item": [
+        {
+          "name": "List Semesters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/studentfee/semesters", "host": ["{{base_url}}"], "path": ["studentfee", "semesters"] },
+            "description": "200 non-empty list; 401 unauthorized; 404 no semesters."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Invoice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/studentfee/my-invoice?semester_id={{semester_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["studentfee", "my-invoice"],
+              "query": [{ "key": "semester_id", "value": "{{semester_id}}", "description": "Optional; remove to use current date-covering semester" }]
+            },
+            "description": "200 invoice; 401 unauthorized; 404 no current semester/invoice."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Other Student Invoice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/studentfee/invoice/{{other_user_id}}", "host": ["{{base_url}}"], "path": ["studentfee", "invoice", "{{other_user_id}}"] },
+            "description": "Path value is treated as student UUID. Service does not enforce bearer auth on this route; access policy is TBD. 200 or 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Invoice Paid",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/studentfee/pay/{{invoice_id}}", "host": ["{{base_url}}"], "path": ["studentfee", "pay", "{{invoice_id}}"] },
+            "description": "State-changing internal-style route. 200 success; 401 unauthorized; 404 not found/not updated."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Create Self Intent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.environment.set('intent_id', body.id);",
+                  "  if (body.invoice_id) pm.environment.set('invoice_id', body.invoice_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": null,\n  \"semester_id\": \"{{semester_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/payment/intents", "host": ["{{base_url}}"], "path": ["payment", "intents"] },
+            "description": "State-changing. 200 success and saves IDs locally; 400 paid/invalid/duplicate invoice; 401; 422; upstream errors."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Intent for Other Student",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.environment.set('intent_id', body.id);",
+                  "  if (body.invoice_id) pm.environment.set('invoice_id', body.invoice_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": \"{{other_user_id}}\",\n  \"semester_id\": \"{{semester_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/payment/intents", "host": ["{{base_url}}"], "path": ["payment", "intents"] },
+            "description": "Uses target's current-semester invoice. State-changing; expected statuses as self intent."
+          },
+          "response": []
+        },
+        {
+          "name": "Send or Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/payment/intents/{{intent_id}}/send-otp", "host": ["{{base_url}}"], "path": ["payment", "intents", "{{intent_id}}", "send-otp"] },
+            "description": "Sends email/prints OTP and changes intent. 200 success; 400 invalid/resend/data error; 401. Never commit a captured OTP."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Intent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"{{otp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/payment/intents/{{intent_id}}/confirm", "host": ["{{base_url}}"], "path": ["payment", "intents", "{{intent_id}}", "confirm"] },
+            "description": "Critical state-changing request. 200 success; 401; 422 OTP/schema/state errors; upstream status; 500 unexpected failure."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Intent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/payment/intents/{{intent_id}}/cancel", "host": ["{{base_url}}"], "path": ["payment", "intents", "{{intent_id}}", "cancel"] },
+            "description": "State-changing; marks failed. 200 success; 400 invalid/update error; 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/payment/payments/history/{{user_id}}/{{semester_id}}", "host": ["{{base_url}}"], "path": ["payment", "payments", "history", "{{user_id}}", "{{semester_id}}"] },
+            "description": "200 array (including empty); 400 repository/upstream error; 401. Authorization and semester isolation require verification."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "auth_service_url", "value": "http://localhost:8001" },
+    { "key": "payment_service_url", "value": "http://localhost:8004" }
+  ]
+}
