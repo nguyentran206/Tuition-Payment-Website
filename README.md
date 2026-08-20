@@ -1,141 +1,217 @@
 # Tuition Payment Website
 
-## Project overview
+## Project Overview
 
-Tuition Payment Website is a university project that simulates an iBanking-style tuition payment system. An authenticated student can review profile and tuition data, inspect invoices by semester, add funds to a simulated balance, pay an invoice for themselves or another student, confirm a payment with an email OTP, and review payment history.
+Tuition Payment Website is a university group project that simulates an iBanking-style web application for tuition payment. An authenticated student can review profile and tuition information, inspect invoices by semester, add funds to a simulated balance, pay an invoice for themselves or another student, confirm the payment with an email OTP, and review payment history.
 
-The application is implemented as a React frontend backed by an API gateway and four FastAPI services. Supabase is used as the data-access platform. This repository is a simulation; it does not integrate with a real bank or payment processor.
+The system uses a React frontend, a FastAPI API Gateway, and four FastAPI services: Auth, User, Student Fee, and Payment. Each service accesses its own Supabase schema. This repository is an educational simulation and does not connect to a real bank or payment processor.
 
-## Main features
+The source supports one identifiable application actor: an authenticated student whose `username` is the university student ID (MSSV). No administrator or staff workflow is implemented.
 
-- JWT-based login and session verification.
-- Student profile and simulated account balance display.
-- Semester selection and tuition invoice lookup.
-- Invoice-item and calculated total display.
+## Main Features
+
+- JWT-based login and protected application access.
+- Student profile and simulated account-balance display.
+- Semester selection and tuition-invoice lookup.
+- Invoice-item and calculated-total display.
 - Self-payment and payment on behalf of another student.
-- Simulated balance deposit and debit operations.
+- Simulated balance top-up and debit operations.
 - Six-digit email OTP confirmation with a 180-second application timer.
-- Payment intent lifecycle: `pending`, `otp_sent`, `processing`, `confirmed`, and failure states used by the implementation.
+- Payment-intent lifecycle covering pending, OTP, processing, confirmation, cancellation, expiry, and failure scenarios.
 - Payment history with payer and beneficiary information.
 - Logout and client-side handling of invalid sessions.
 
-## User roles
+## Screenshots
 
-The source code supports one identifiable actor. The confirmed identity rule is that `username` is always the student's university ID (MSSV):
+The screenshots below use synthetic test data and show the main web-application flows. The complete evidence set is indexed in [`docs/images`](docs/images/README.md).
 
-- **Student / authenticated user**: views tuition information and performs payment-related actions.
+### Student and tuition dashboard
 
-No role field, role claim, administrator route, or staff workflow is present. Any additional role is **TBD – Requires confirmation**.
+![Student profile, semester, and tuition dashboard](docs/images/TC-UI-002.png)
 
-## Technology stack
+| Payment history | OTP confirmation |
+|---|---|
+| ![Tuition items and payment history](docs/images/TC-UI-004-2.png) | ![OTP confirmation dialog](docs/images/TC-UI-006-1.png) |
+
+## Technology Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React 19, React Router, Axios, Vite 7, CSS |
-| API gateway | FastAPI, HTTPX |
+| API Gateway | FastAPI, HTTPX, CORS middleware |
 | Backend services | Python, FastAPI, Pydantic |
-| Authentication | JWT (`python-jose`), bcrypt via Passlib, HTTP Bearer |
-| Data access | Supabase Python client / PostgREST |
-| Database | Supabase-hosted database; exact PostgreSQL DDL is not included |
-| Email | SMTP using Python `smtplib` |
+| Authentication | JWT with `python-jose`, Passlib/bcrypt, HTTP Bearer |
+| Data platform | Supabase Python client and PostgREST |
+| Database | Supabase-hosted PostgreSQL with service-specific schemas |
+| Email | SMTP through Python `smtplib` |
+| API testing | Postman and FastAPI OpenAPI/Swagger UI |
 
-## Basic request flow
+## System Architecture
 
 ```text
-Browser (React :5173)
+React Web App (:5173)
         |
-        | HTTP + Bearer JWT
+        | HTTP requests + Bearer JWT
         v
-API Gateway (:8000)
-   |        |          |           |
-   v        v          v           v
-Auth      User     Student Fee   Payment
-:8001     :8002       :8003       :8004
-   |        |          |           |
-   +--------+----------+-----------+
-                    |
-                    v
-          Supabase service schemas
+FastAPI API Gateway (:8000)
+   |             |             |             |
+   v             v             v             v
+Auth Service   User Service   Student Fee   Payment Service
+   :8001          :8002          :8003          :8004
+   |               |              |              |
+   v               v              v              v
+auth_svc       user_svc      studentfee_svc   payment_svc
+        \____________ Supabase / PostgreSQL ____________/
 
-Payment also calls User and Student Fee services and can send SMTP email.
+Payment Service also calls User and Student Fee services and can send
+OTP and payment-notification emails through SMTP.
 ```
 
-## My role
+The browser communicates with the API Gateway rather than accessing Supabase directly. Backend services use the server-side Supabase service-role key; user-level authorization remains the responsibility of the application services.
 
-Repository evidence currently supports the following portfolio activities:
+## Basic Request Flow
 
-- Analyzed source-derived functional requirements and business flows.
-- Designed manual UI and API test cases.
-- Prepared and executed a 53-case manual test suite with formal defect and execution-summary documentation.
-- Documented potential issues identified through code review.
-- Prepared a Postman collection and local environment template for future API execution.
+1. The student logs in through the API Gateway and receives a JWT from the Auth Service.
+2. The React client stores the token locally and attaches it to subsequent API requests.
+3. The Gateway forwards profile, balance, semester, invoice, and payment requests to the relevant service.
+4. For a payment, the Payment Service obtains payer and invoice data from the User and Student Fee services, calculates the amount, and creates a payment intent.
+5. The Payment Service issues an email OTP and records its expiry time.
+6. After OTP confirmation, the service attempts to debit the simulated balance, mark the tuition invoice as paid, save the payment record, and send notification emails.
+7. The React client refreshes the invoice, balance, and payment-history views.
 
-Manual execution is supported by screenshots committed under [`docs/images`](docs/images/README.md). The exact tested commit and Chrome version were not recorded.
+## My Contributions
 
-## Testing scope
+This was a collaborative university project. The contributions below describe the parts I worked on; they do not claim sole ownership of the application or its overall architecture.
 
-The planned scope covers authentication, user profile and balance operations, semester and invoice retrieval, self/other-student payments, OTP confirmation, transaction state changes, payment history, API validation, basic authorization checks, UI behavior, and data consistency checks.
+### Software Development
 
-Out of scope for the current evidence set are performance testing, penetration testing, production readiness certification, real banking integration, comprehensive accessibility certification, and test automation execution.
+- Contributed to the React payment dashboard and its non-authentication workflows, including student information, account balance, semester and invoice views, self/other-student payment flows, simulated top-up, payment history, and OTP interaction.
+- Contributed to API Gateway routing and integration for the User, Student Fee, and Payment services.
+- Worked on User Service components related to profile retrieval, user lookup, and simulated balance deposit/debit operations.
+- Worked on Student Fee Service components related to semesters, tuition invoices, invoice items, total calculation, and invoice payment status.
+- Worked on Payment Service components related to payment intents, OTP issuance and confirmation, payment processing, service-to-service calls, payment records, history, and email notifications.
+- Added reproducible Supabase migrations, service-oriented database schemas, constraints, indexes, and synthetic seed data for local development and testing.
+- Prepared the backend environment template and updated the frontend React and Axios dependencies.
 
-## Testing types
+My software-development contribution did not include the Auth Service, login page, frontend authentication client, or Auth-specific Gateway routing.
+
+### Testing & Quality Assurance
+
+- Analyzed source-derived functional requirements and end-to-end business flows.
+- Designed manual UI and API test cases using requirement-based, boundary, decision-table, and state-transition techniques.
+- Prepared a 53-case manual test suite and executed 51 cases in a local environment.
+- Recorded actual results, test status, database observations, and 121 screenshot artifacts covering 50 test-case IDs.
+- Documented five confirmed defects and maintained a register of potential issues found through source-code review.
+- Prepared a reusable Postman collection, local environment template, endpoint inventory, and suggested execution order.
+- Produced the test plan, feature and requirement analysis, execution summary, evidence index, and supporting database setup documentation.
+
+Testing included the Auth module as part of system-level quality assurance. Testing a module is not presented as evidence that I developed that module.
+
+## Repository Structure
+
+```text
+backend/
+  auth/             Authentication service
+  users/            User profile and simulated balance service
+  studentfee/       Semester and tuition-invoice service
+  payment/          Payment intent, OTP, history, and email logic
+  gateway/          HTTP reverse-proxy API Gateway
+  .env.example      Safe local environment template
+frontend/
+  src/pages/        Login and payment dashboard screens
+  src/services/     Axios clients for Gateway endpoints
+  src/assets/       Application images and icons
+docs/
+  requirements/     Source-derived feature and requirement analysis
+  test-plan/        Manual test strategy and scope
+  test-cases/       Manual UI and API test cases
+  bug-reports/      Defect reports, template, and review findings
+  test-reports/     Manual execution summary
+  images/           Sanitized screenshots and evidence index
+  database/         Reproducible Supabase setup guide
+postman/            Collection, local environment, and API inventory
+supabase/
+  migrations/       PostgreSQL schema, constraints, and indexes
+  seed.sql          Synthetic local test data
+  config.toml       Local Supabase configuration
+```
+
+## Testing & Quality Assurance
+
+### Testing Scope
+
+The planned scope covers authentication, user profile and balance operations, semester and invoice retrieval, self/other-student payments, OTP confirmation, transaction-state changes, payment history, API validation, basic authorization checks, UI behavior, and database consistency after state-changing operations.
+
+Performance testing, penetration testing, production-readiness certification, real banking integration, comprehensive accessibility certification, and automated test execution are outside the current evidence set.
+
+### Testing Types
 
 - Functional testing
 - UI testing
-- API testing
-- Negative and validation testing
-- Role/access-control testing for authenticated versus unauthenticated access
+- API testing with Postman and Swagger UI
+- Negative and input-validation testing
+- Authenticated versus unauthenticated access checks
 - Basic regression testing
 - Database validation after state-changing operations
+- End-to-end payment-flow testing
 
-## Testing techniques
+### Testing Techniques
 
 - Equivalence partitioning
 - Boundary value analysis
 - Decision-table coverage for balance, invoice status, and OTP state
 - State-transition testing for payment intents
-- Error guessing for invalid identifiers, duplicate requests, upstream failures, and retries
 - Requirement-based and use-case-based testing
+- Error guessing for invalid identifiers, duplicate requests, retries, and upstream failures
 
-## Tools
+### Test Documentation
 
-Tools evidenced by the repository are FastAPI OpenAPI/Swagger UI, Supabase, npm/Vite, Git, Postman, and Chrome. Manual API execution used Postman and UI execution used Chrome in a local environment.
+| Artifact | Description |
+|---|---|
+| [Feature overview and testable requirements](docs/requirements/feature-overview.md) | Source-derived system behavior and traceability baseline |
+| [Test plan](docs/test-plan/test-plan.md) | Scope, approach, environment, risks, and deliverables |
+| [Manual test cases](docs/test-cases/test-cases.md) | Detailed UI and API cases with execution status |
+| [Defect report template](docs/bug-reports/defect-report-template.md) | Reusable defect-record format and severity definitions |
+| [Potential issues from code review](docs/bug-reports/potential-issues.md) | Review hypotheses and execution outcomes |
+| [Confirmed defect reports](docs/bug-reports/README.md) | Index of formal defects and blocked observations |
+| [Manual execution summary](docs/test-reports/test-summary-report.md) | Test metrics, module status, risks, and recommendations |
+| [Screenshot evidence index](docs/images/README.md) | Mapping between test cases and committed evidence |
+| [Postman documentation](postman/README.md) | Collection setup, variables, endpoints, and execution order |
+| [Database setup guide](docs/database/database-setup.md) | Reproducible schema and synthetic-data instructions |
 
-## Test documentation
+### Test Results / Current Testing Status
 
-- [Feature overview and testable requirements](docs/requirements/feature-overview.md)
-- [Test plan](docs/test-plan/test-plan.md)
-- [Manual test cases](docs/test-cases/test-cases.md)
-- [Defect report template](docs/bug-reports/defect-report-template.md)
-- [Potential issues from code review](docs/bug-reports/potential-issues.md)
-- [Manual execution test summary](docs/test-reports/test-summary-report.md)
-- [Confirmed defect reports](docs/bug-reports/README.md)
-- [Screenshot evidence guide](docs/images/README.md)
-- [Reproducible Supabase database setup](docs/database/database-setup.md)
-- [Postman usage and endpoint inventory](postman/README.md)
+**Execution status: Completed with exceptions**
 
-## Current testing status
+| Metric | Result |
+|---|---:|
+| Designed test cases | 53 |
+| Executed | 51 |
+| Passed | 43 |
+| Failed | 5 |
+| Blocked | 3 |
+| Not Run | 2 |
+| Confirmed defects | 5 |
+| Screenshot artifacts | 121 |
+| Case IDs with screenshots | 50 of 53 |
 
-**Execution Status: Completed with exceptions**
+The five confirmed defects remain documented under `docs/bug-reports/`. Two code-review hypotheses were confirmed through execution. Three authorization/state-policy cases remain blocked pending policy clarification, and two cases were not run because the required datasets were unavailable or destructive to prepare.
 
-The suite contains 53 test cases: 51 executed and 2 Not Run. Results are 43 Passed, 5 Failed, 3 Blocked, and 2 Not Run. Five confirmed defects are documented under `docs/bug-reports/`. Two code-review hypotheses were confirmed through execution; access-control observations remain blocked pending policy confirmation.
-
-## Screenshots
-
-The repository contains 121 screenshots covering 50 of the 53 designed test cases. Evidence uses test-case IDs and numeric suffixes for multiple artifacts; see the [test evidence index](docs/images/README.md).
-
-## Setup and run instructions
+## Setup and Run Instructions
 
 ### Prerequisites
 
 - Python compatible with the pinned packages in `backend/requirements.txt`
 - Node.js and npm
-- A Supabase project containing the schemas/tables expected by the repository code
-- Optional SMTP credentials; without them, mail content is printed in development mode
+- Supabase CLI for applying the versioned migration and seed data
+- A local or hosted Supabase project
+- Optional SMTP credentials; without them, development mail content is printed instead
 
-### Database setup
+### Database Setup
 
-The complete schema and synthetic test dataset are versioned under `supabase/`. Follow [the database setup guide](docs/database/database-setup.md). For a new linked test project, migrations and seed data can be applied without manually creating Dashboard tables:
+The schema and synthetic test dataset are versioned under `supabase/`. See the [database setup guide](docs/database/database-setup.md) for local and hosted-project options.
+
+For a new linked test project:
 
 ```powershell
 npx supabase link --project-ref <NEW_PROJECT_REF>
@@ -143,9 +219,17 @@ npx supabase db push --dry-run
 npx supabase db push --include-seed
 ```
 
-### Backend environment
+Use a disposable project or review the migration before applying it to an existing database.
 
-Create `backend/.env` locally. Do not commit secrets.
+### Backend Environment
+
+Create the local environment file from the committed template and replace placeholder values. Do not commit secrets.
+
+```powershell
+Copy-Item backend\.env.example backend\.env
+```
+
+The main variables are:
 
 ```dotenv
 SUPABASE_URL=<your-supabase-url>
@@ -165,7 +249,7 @@ SMTP_USER=<optional-user>
 SMTP_PASS=<optional-password>
 ```
 
-From the repository root:
+Install the backend dependencies from the repository root:
 
 ```powershell
 python -m venv .venv
@@ -173,17 +257,36 @@ python -m venv .venv
 pip install -r backend\requirements.txt
 ```
 
-Start each process in a separate terminal from `backend`:
+### Start Backend Services
+
+Run each process in a separate terminal from the `backend` directory:
 
 ```powershell
+cd backend
 uvicorn auth.main:app --reload --port 8001
+```
+
+```powershell
+cd backend
 uvicorn users.main:app --reload --port 8002
+```
+
+```powershell
+cd backend
 uvicorn studentfee.main:app --reload --port 8003
+```
+
+```powershell
+cd backend
 uvicorn payment.main:app --reload --port 8004
+```
+
+```powershell
+cd backend
 uvicorn gateway.main:app --reload --port 8000
 ```
 
-### Frontend
+### Start Frontend
 
 ```powershell
 cd frontend
@@ -191,43 +294,29 @@ npm install
 npm run dev
 ```
 
-The frontend defaults to `http://localhost:8000`; override it with `VITE_API_BASE_URL` when required.
+The frontend normally runs at `http://localhost:5173` and calls `http://localhost:8000`. Set `VITE_API_BASE_URL` if the Gateway uses another address.
 
-### API documentation
+### API Documentation
 
-When a service is running, its generated OpenAPI documentation is normally available at `/docs`, for example `http://localhost:8004/docs`. The gateway schema contains proxy routes and may not expose the detailed downstream request models.
+When a service is running, its generated OpenAPI documentation is available at `/docs`, for example:
 
-## Known limitations
+- Auth Service: `http://localhost:8001/docs`
+- User Service: `http://localhost:8002/docs`
+- Student Fee Service: `http://localhost:8003/docs`
+- Payment Service: `http://localhost:8004/docs`
+- API Gateway: `http://localhost:8000/docs`
 
-- Database migrations, DDL, seed data, and RLS policies are not included.
-- No automated test suite or CI execution result is included; manual results and screenshot evidence are documented under `docs/`.
-- The gateway does not currently proxy `POST /auth/signup`; direct-service behavior and desired gateway behavior require confirmation.
-- The frontend references a current-intent endpoint that is not implemented by the payment router.
-- Authorization policy for accessing another student's invoice/history and for balance operations is not formally specified.
-- OTP duration is inconsistent between active code (180 seconds) and email text (5 minutes).
-- The balance top-up flow is a simulation and has no external funding provider.
-- Cross-service payment updates are not implemented as one database transaction.
-- Formal browser support and deployment configuration are **TBD – Requires confirmation**.
+The Gateway schema primarily represents proxy routes; detailed request and response models are available from the downstream service documentation.
 
-## Repository structure
+## Known Limitations
 
-```text
-backend/
-  auth/             Authentication service
-  users/            User profile and balance service
-  studentfee/       Semester and tuition invoice service
-  payment/          Intent, OTP, payment, history, and email logic
-  gateway/          HTTP reverse-proxy API gateway
-frontend/
-  src/pages/        Login and Home screens
-  src/services/     Axios API clients
-docs/
-  requirements/     Source-derived feature overview and requirements
-  test-plan/        Test strategy and proposed schedule
-  test-cases/       Manual test cases
-  bug-reports/      Defect template and code-review findings
-  test-reports/     Manual execution test summary
-  images/           Sanitized execution screenshots and evidence index
-postman/            Prepared collection, environment, and API inventory
-supabase/            Reproducible database migration, local config, and test seed
-```
+- The account balance, top-up, and payment operations are simulations with no real banking or external funding provider.
+- Five confirmed defects are currently open; three test cases are blocked and two were not run.
+- No automated test suite or CI test execution is included in the repository.
+- The Gateway does not currently proxy `POST /auth/signup`.
+- The frontend references a current-payment-intent endpoint that is not implemented by the Payment router.
+- Ownership and privacy rules for accessing another student's invoice/history and mutating payment intents are not formally specified.
+- OTP duration is inconsistent between active application code (180 seconds) and some email content (5 minutes).
+- Cross-service balance, invoice, intent, and payment updates are not executed as one atomic database transaction.
+- Services use an elevated Supabase service-role key; fine-grained user authorization depends on application logic, and table-level RLS policies are not defined in the migration.
+- Formal browser support, production deployment, monitoring, and operational-security configuration remain undefined.
